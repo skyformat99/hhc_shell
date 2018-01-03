@@ -1,0 +1,7 @@
+NAME="eth0"
+ONBOOT=yes
+NETBOOT=yes
+UUID="1513f5a4-68cd-455f-8482-3bf90c496b28"
+IPV6INIT=yes
+BOOTPROTO=static
+TYPE=Ethernet

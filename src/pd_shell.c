@@ -3,12 +3,13 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <glib-2.0/glib.h>
-#include <libnm/NetworkManager.h>
+#include <stdarg.h>
 
 #define PD_SHELL_MAX_COMMAND_SIZE 256
 #define PD_SHELL_TOKEN_BUFSIZE 64
 #define PD_SHELL_TOKEN_DELIMITER " \t\r\n\a"
+#define NETWORK_CONFIG_EXAMPLE_FILE "conf/ifcfg-eth0.XAMPLE"
+#define NETWORK_CONFIG_FILE "conf/ifcfg-eth0"
 
 /*
  * Error codes
@@ -24,16 +25,6 @@ typedef enum{
  * Global vars
  */
 int argc;
-NMClient *nmclient;
-GError *error;
-
-typedef struct{
-    char* pd_netmask;
-    char* pd_ip;
-    char* pd_gateway;
-    char* pd_dns;
-    char* pd_ntp;
-}NetInfo;
 
 pd_shell_error_e pd_shell_help ()
 {
@@ -56,22 +47,14 @@ char* pd_shell_make_command(char* command_fmt_string, ... ){
     va_list args;
     char* command_buffer = malloc(sizeof(char) * PD_SHELL_MAX_COMMAND_SIZE);
     va_start(args, command_fmt_string);
-    vsnprintf(command_buffer, PD_SHELL_MAX_COMMAND_SIZE - 1, command_fmt_string, args);
+    vsnprintf(command_buffer,
+            PD_SHELL_MAX_COMMAND_SIZE - 1,
+            command_fmt_string, args);
     va_end(args);
     return command_buffer;
 }
 
 #ifdef PD_SHELL_DEBUG
-
-pd_shell_error_e pd_shell_test_network_config ()
-{
-    char* command = pd_shell_make_command("nmcli %s %s", "con", "show");
-    system(command);
-    printf("\n");
-    system("nmcli dev status");
-    return E_PD_SHELL_SUCCESS;
-}
-
 
 pd_shell_error_e pd_shell_test ()
 {
@@ -97,57 +80,48 @@ void pd_shell_read_line(char **buffer)
     (*buffer)[buffer_len - 1] = '\0';
 }
 
-static
-NetInfo* pd_shell_get_nm_vars()
-{
-    /*
-     *  Read network info from command line and set the NetInfo struct values
-     */
-
-    NetInfo *net_info;
-    net_info = malloc(sizeof(NetInfo));
-    printf("Enter Netmask: ");
-    pd_shell_read_line(&(net_info->pd_netmask));
-
-    printf("Enter IP: ");
-    pd_shell_read_line(&(net_info->pd_ip));
-
-    printf("Enter Gateway: ");
-    pd_shell_read_line(&(net_info->pd_gateway));
-
-    printf("Enter DNS: ");
-    pd_shell_read_line(&(net_info->pd_dns));
-
-    printf("Enter NTP: ");
-    pd_shell_read_line(&(net_info->pd_ntp));
-    return net_info;
-
-}
-
 pd_shell_error_e pd_shell_network_config_wizard(int __attribute__((unused)) argc,
                                                 char __attribute__((unused)) **args)
 {
     /*
      * Open network configuration wizard
      */
-    NetInfo* pd_network_vars;
-    error = NULL;
-    nmclient = nm_client_new (NULL, &error);
-    if (!nmclient) {
-        g_error_free(error);
-        return E_PD_SHELL_NM_CONNECTION_ERROR;
-    }
-    printf("Connected to network Manager\n");
-    pd_network_vars = pd_shell_get_nm_vars();
-#ifdef PD_SHELL_DEBUG
-    printf("Netmask: %s\n", pd_network_vars->pd_netmask);
-    printf("IP: %s\n", pd_network_vars->pd_ip);
-    printf("Gateway: %s\n", pd_network_vars->pd_gateway);
-    printf("DNS: %s\n", pd_network_vars->pd_dns);
-    printf("NTP: %s\n", pd_network_vars->pd_ntp);
-#endif
-    // Perform Network Operations
-    free(pd_network_vars);
+    char* pd_netmask;
+    char* pd_ip;
+    char* pd_gateway;
+    char* pd_dns1;
+    char* pd_dns2;
+    FILE *config_file;
+
+    system(pd_shell_make_command("cp %s %s",
+                NETWORK_CONFIG_EXAMPLE_FILE,
+                NETWORK_CONFIG_FILE));
+    config_file = fopen(NETWORK_CONFIG_FILE, "a");
+
+    printf("Enter IP: ");
+    pd_shell_read_line(&pd_ip);
+    fprintf(config_file, "IPADDR=%s\n",pd_ip);
+
+    printf("Enter Netmask: ");
+    pd_shell_read_line(&pd_netmask);
+    fprintf(config_file, "NETMASK=%s\n",pd_netmask);
+
+    printf("Enter DNS1: ");
+    pd_shell_read_line(&pd_dns1);
+    fprintf(config_file, "DNS1=%s\n",pd_dns1);
+
+    printf("Enter DNS2: ");
+    pd_shell_read_line(&pd_dns2);
+    fprintf(config_file, "DNS2=%s\n",pd_dns2);
+
+    printf("Enter Gateway: ");
+    pd_shell_read_line(&pd_gateway);
+    fprintf(config_file, "GATEWAY=%s\n",pd_gateway);
+
+    fclose(config_file);
+    system(pd_shell_make_command("mv %s /etc/sysconfig/network-scripts/",
+                NETWORK_CONFIG_FILE));
+    system("systemctl restart NetworkManager");
     return E_PD_SHELL_SUCCESS;
 }
 
@@ -162,9 +136,6 @@ pd_shell_error_e pd_shell_execute(char** args)
         status = pd_shell_help();
     }else if(strcmp(command, "network_config") == 0){
         status = pd_shell_network_config_wizard(argc, args);
-        if(status == E_PD_SHELL_NM_CONNECTION_ERROR){
-            printf("Error: Could not connect to NetworkManager: %s.\n", error->message);
-        }
         status = E_PD_SHELL_SUCCESS;
     }
 #ifdef PD_SHELL_DEBUG
@@ -181,7 +152,7 @@ pd_shell_error_e pd_shell_execute(char** args)
         printf("pd_shell: Enter \"help\" for more information\n");
         status = E_PD_SHELL_SUCCESS;
     }
-    return status;
+	return status;
 }
 
 char** pd_shell_parse_args(char* line)
