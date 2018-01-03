@@ -8,7 +8,7 @@
 #define PD_SHELL_MAX_COMMAND_SIZE 256
 #define PD_SHELL_TOKEN_BUFSIZE 64
 #define PD_SHELL_TOKEN_DELIMITER " \t\r\n\a"
-#define NETWORK_CONFIG_EXAMPLE_FILE "conf/ifcfg-eth0.XAMPLE"
+#define NETWORK_CONFIG_EXAMPLE_FILE "conf/ifcfg-eth0.EXAMPLE"
 #define NETWORK_CONFIG_FILE "conf/ifcfg-eth0"
 
 /*
@@ -18,7 +18,7 @@ typedef enum{
         E_PD_SHELL_SUCCESS = 0,
         E_PD_SHELL_FAILURE,
         E_PD_SHELL_ALLOCATION_ERROR,
-        E_PD_SHELL_NM_CONNECTION_ERROR
+        E_PD_SHELL_NETWORK_CONFIG_FAILED
 }pd_shell_error_e;
 
 /*
@@ -91,11 +91,17 @@ pd_shell_error_e pd_shell_network_config_wizard(int __attribute__((unused)) argc
     char* pd_gateway;
     char* pd_dns1;
     char* pd_dns2;
+    int out;
     FILE *config_file;
 
-    system(pd_shell_make_command("cp %s %s",
+    out = system(pd_shell_make_command("cp %s %s",
                 NETWORK_CONFIG_EXAMPLE_FILE,
                 NETWORK_CONFIG_FILE));
+
+    if(out != 0){
+        return E_PD_SHELL_NETWORK_CONFIG_FAILED;
+    }
+
     config_file = fopen(NETWORK_CONFIG_FILE, "a");
 
     printf("Enter IP: ");
@@ -119,9 +125,18 @@ pd_shell_error_e pd_shell_network_config_wizard(int __attribute__((unused)) argc
     fprintf(config_file, "GATEWAY=%s\n",pd_gateway);
 
     fclose(config_file);
-    system(pd_shell_make_command("mv %s /etc/sysconfig/network-scripts/",
+
+    out = system(pd_shell_make_command("mv %s /etc/sysconfig/network-scripts/",
                 NETWORK_CONFIG_FILE));
-    system("systemctl restart NetworkManager");
+
+    if(out != 0){
+        return E_PD_SHELL_NETWORK_CONFIG_FAILED;
+    }
+
+    out = system("systemctl restart NetworkManager");
+    if(out != 0){
+        return E_PD_SHELL_NETWORK_CONFIG_FAILED;
+    }
     return E_PD_SHELL_SUCCESS;
 }
 
