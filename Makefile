@@ -1,4 +1,4 @@
-.PHONY: all clang lint clean doc
+.PHONY: all clang lint clean memcheck
 
 CC              := gcc
 CLANG           := clang
@@ -18,7 +18,7 @@ CFLAGS_PRD      := -Os
 CFLAGS_DBG      := -O0 -g -DCONFIG_CLI_DEBUG
 CFLAGS          := $(CFLAGS_BASE) $(CFLAGS_PRD)
 
-LDLIBS          := -lrt -lreadline -lhistory
+LDLIBS          := -lreadline -lhistory -ldb
 
 all: mk_obj_dirs $(TARGET)
 
@@ -39,7 +39,7 @@ clang: $(SRC)
 lint: $(SRC)
 	scan-build $(MAKE) CC=$(CLANG) all
 
-testm: debug
+memcheck: debug
 	@echo
 	@echo "RUNNING VALGRIND"
 	@echo "----------------"
