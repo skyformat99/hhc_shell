@@ -45,12 +45,8 @@ testm: debug
 	@echo "----------------"
 	$(VALGRIND) $(VALGRIND_FLAGS) $(OBJDIR)/$(TARGET)
 
-doc:
-	$(MAKE) -C $(DOCDIR) html
-
 clean:
 	@rm -rf *.o $(OBJDIR)/$(TARGET) 
-	$(MAKE) -C $(DOCDIR) clean
 
 mk_obj_dirs:
 	@mkdir -p $(OBJDIR)
