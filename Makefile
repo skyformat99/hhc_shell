@@ -1,23 +1,24 @@
-.PHONY: all clang lint clean 
+.PHONY: all clang lint clean doc
 
 CC              := gcc
 CLANG           := clang
 VALGRIND        := valgrind
 
 OBJDIR          := obj
+DOCDIR          := docs
 
 SRC             := $(wildcard src/*.c)
 
-TARGET          := pd_shell 
+TARGET          := hhc_shell 
 
 VALGRIND_FLAGS  := --leak-check=full --show-leak-kinds=all
 
-CFLAGS_BASE     := -g -Wall -Wextra -fPIC `pkg-config --libs --cflags glib-2.0 libnm` -I src/
+CFLAGS_BASE     := -g -Wall -Wextra -fPIC -std=gnu11
 CFLAGS_PRD      := -Os
-CFLAGS_DBG      := -O0 -g -DPD_SHELL_DEBUG
+CFLAGS_DBG      := -O0 -g -DCONFIG_CLI_DEBUG
 CFLAGS          := $(CFLAGS_BASE) $(CFLAGS_PRD)
 
-LDLIBS          := -lrt
+LDLIBS          := -lrt -lreadline -lhistory
 
 all: mk_obj_dirs $(TARGET)
 
@@ -44,8 +45,12 @@ testm: debug
 	@echo "----------------"
 	$(VALGRIND) $(VALGRIND_FLAGS) $(OBJDIR)/$(TARGET)
 
+doc:
+	$(MAKE) -C $(DOCDIR) html
+
 clean:
 	@rm -rf *.o $(OBJDIR)/$(TARGET) 
+	$(MAKE) -C $(DOCDIR) clean
 
 mk_obj_dirs:
 	@mkdir -p $(OBJDIR)

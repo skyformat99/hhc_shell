@@ -1,3 +1,2 @@
-# Pindrop Configuration Wizard
-
-CLI service to configure new boxes 
+# HHC SHELL
+Shell app to test integration of C libs
